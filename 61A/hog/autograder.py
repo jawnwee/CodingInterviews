@@ -29,6 +29,7 @@ def test_all(project_name, tests=TESTS):
             failure = True
         if failure:
             sys.exit(1)
+        print('All tests passed')
         print()
     sys.exit(0)
 

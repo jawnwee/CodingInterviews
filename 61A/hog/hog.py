@@ -45,6 +45,18 @@ def take_turn(num_rolls, opponent_score, dice=six_sided):
     assert num_rolls <= 10, 'Cannot roll more than 10 dice.'
     assert opponent_score < 100, 'The game should be over.'
     "*** YOUR CODE HERE ***"
+    # Free bacon rule implementation
+    if num_rolls == 0:
+        largest_digit = 0
+        temp_opponent_score = opponent_score
+        while temp_opponent_score != 0:
+            digit = temp_opponent_score % 10
+            if temp_opponent_score > largest_digit:
+                largest_digit = digit
+            temp_opponent_score //= 10
+        return largest_digit + 1
+    else:
+        return roll_dice(num_rolls, dice)
 
 # Playing a game
 
@@ -60,7 +72,10 @@ def select_dice(score, opponent_score):
     True
     """
     "*** YOUR CODE HERE ***"
-
+    total_score = score + opponent_score
+    if total_score % 7 == 0:
+        return four_sided
+    return six_sided
 def other(who):
     """Return the other player, for a player WHO numbered 0 or 1.
 
@@ -85,6 +100,20 @@ def play(strategy0, strategy1, goal=GOAL_SCORE):
     who = 0  # Which player is about to take a turn, 0 (first) or 1 (second)
     score, opponent_score = 0, 0
     "*** YOUR CODE HERE ***"
+    dice = select_dice(score, opponent_score)
+    while score < goal and opponent_score < goal:
+        num_roll_player0 = strategy0(score, opponent_score)
+        num_roll_player1 = strategy1(opponent_score, score)
+        if who == 0:
+            score += take_turn(num_roll_player0, opponent_score, dice)
+        else:
+            opponent_score += take_turn(num_roll_player1, score, dice)
+        if score == opponent_score/2 or opponent_score == score/2:
+            temp = score
+            score = opponent_score
+            opponent_score = temp
+        dice = select_dice(score, opponent_score)
+        who = other(who)
     return score, opponent_score  # You may wish to change this line.
 
 #######################
@@ -134,7 +163,12 @@ def make_averaged(fn, num_samples=1000):
     Thus, the average value is 6.0.
     """
     "*** YOUR CODE HERE ***"
-
+    def repeat_fn(*args):
+        avg = 0
+        for i in range (0, num_samples):
+            avg += fn(*args)
+        return avg / num_samples
+    return repeat_fn
 def max_scoring_num_rolls(dice=six_sided):
     """Return the number of dice (1 to 10) that gives the highest average turn
     score by calling roll_dice with the provided DICE.  Print all averages as in
@@ -155,6 +189,14 @@ def max_scoring_num_rolls(dice=six_sided):
     10
     """
     "*** YOUR CODE HERE ***"
+    highest_average = 0
+    best_dice = 0
+    for i in range (1, 11):
+        dice_average = make_averaged(roll_dice)(i, dice)
+        print(i, "dice scores", dice_average, "on average")
+        if dice_average > highest_average:
+            best_dice = i
+    return best_dice
 
 def winner(strategy0, strategy1):
     """Return 0 if strategy0 wins against strategy1, and 1 otherwise."""
@@ -172,22 +214,22 @@ def average_win_rate(strategy, baseline=always_roll(BASELINE_NUM_ROLLS)):
 
 def run_experiments():
     """Run a series of strategy experiments and report results."""
-    if True: # Change to False when done finding max_scoring_num_rolls
+    if False: # Change to False when done finding max_scoring_num_rolls
         six_sided_max = max_scoring_num_rolls(six_sided)
         print('Max scoring num rolls for six-sided dice:', six_sided_max)
         four_sided_max = max_scoring_num_rolls(four_sided)
         print('Max scoring num rolls for four-sided dice:', four_sided_max)
 
-    if False: # Change to True to test always_roll(8)
+    if True: # Change to True to test always_roll(8)
         print('always_roll(8) win rate:', average_win_rate(always_roll(8)))
 
-    if False: # Change to True to test bacon_strategy
+    if True: # Change to True to test bacon_strategy
         print('bacon_strategy win rate:', average_win_rate(bacon_strategy))
 
-    if False: # Change to True to test swap_strategy
+    if True: # Change to True to test swap_strategy
         print('swap_strategy win rate:', average_win_rate(swap_strategy))
 
-    if False: # Change to True to test final_strategy
+    if True: # Change to True to test final_strategy
         print('final_strategy win rate:', average_win_rate(final_strategy))
 
     "*** You may add additional experiments as you wish ***"
@@ -206,7 +248,10 @@ def bacon_strategy(score, opponent_score):
     0
     """
     "*** YOUR CODE HERE ***"
-    return 5 # Replace this statement
+    rolling_zero = take_turn(0, opponent_score)
+    if rolling_zero >= BACON_MARGIN:
+        return 0
+    return BASELINE_NUM_ROLLS # Replace this statement
 
 def swap_strategy(score, opponent_score):
     """This strategy rolls 0 dice when it would result in a beneficial swap and
@@ -224,7 +269,15 @@ def swap_strategy(score, opponent_score):
     5
     """
     "*** YOUR CODE HERE ***"
-    return 5 # Replace this statement
+    rolling_zero = take_turn(0, opponent_score)
+    if opponent_score > score:
+        if score + rolling_zero == opponent_score / 2:
+            return 0
+        elif score + rolling_zero == opponent_score * 2:
+            return BASELINE_NUM_ROLLS
+        else:
+            return bacon_strategy(score, opponent_score)
+    return BASELINE_NUM_ROLLS # Replace this statement
 
 def final_strategy(score, opponent_score):
     """Write a brief description of your final strategy.
@@ -232,7 +285,32 @@ def final_strategy(score, opponent_score):
     *** YOUR DESCRIPTION HERE ***
     """
     "*** YOUR CODE HERE ***"
-    return 5 # Replace this statement
+    type_of_dice = 0    # 0 means 6 sided, 1 means 4 sided
+    if score + opponent_score % 7 == 0:
+        type_of_dice = 1
+    current_sum = score + opponent_score
+    difference_score = score - opponent_score
+    zero_roll = take_turn(0, opponent_score)
+    if opponent_score > score:
+        if score + zero_roll == opponent_score / 2:
+            return 0
+        elif (current_sum + zero_roll) % 7 == 0:
+            return 0
+        elif type_of_dice == 1:
+            return 1
+        elif -difference_score >= 20 and -difference_score <= 50:
+            return -difference_score // 10 * 2
+        else:
+            return BASELINE_NUM_ROLLS
+    else:
+        if score + zero_roll == opponent_score * 2:
+            return BASELINE_NUM_ROLLS
+        elif (current_sum + zero_roll) % 7 == 0:
+            return 0
+        elif zero_roll >= BACON_MARGIN:
+            return 0
+        else:
+            return BASELINE_NUM_ROLLS
 
 
 ##########################
