@@ -1,4 +1,4 @@
-Berkeley
+Python takes on Cracking the Coding Interview
 ========
 
-School Projects and whatnot
+My attempt at every cracking the coding interview with python!
